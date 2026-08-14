@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bitwarden CLI"
+  short_description: "Безопасная работа с локальным хранилищем Bitwarden"
+  default_prompt: "Используй $bitwarden-cli, чтобы безопасно применить один указанный секрет Bitwarden без его вывода в чат."
