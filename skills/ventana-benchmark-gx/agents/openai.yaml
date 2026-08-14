@@ -1,0 +1,4 @@
+interface:
+  display_name: "VENTANA BenchMark GX"
+  short_description: "Обучение работе с иммуностейнером BenchMark GX"
+  default_prompt: "Используй $ventana-benchmark-gx, чтобы объяснить работу с VENTANA BenchMark GX и проверить моё понимание."

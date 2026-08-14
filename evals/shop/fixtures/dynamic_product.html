@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+  <head><meta charset="utf-8"><title>Тестовая динамическая карточка</title></head>
+  <body>
+    <h1>Apple iPhone 16 Plus</h1>
+    <button type="button" onclick="choose('color', 'Чёрный')">Чёрный</button>
+    <button type="button" onclick="choose('memory', '128 ГБ')">128 ГБ</button>
+    <p id="selection">Вариант не выбран</p>
+    <p id="price"></p>
+    <script>
+      const selected = {};
+      function choose(key, value) {
+        selected[key] = value;
+        document.querySelector('#selection').textContent =
+          `${selected.color || 'цвет не выбран'}, ${selected.memory || 'память не выбрана'}`;
+        if (selected.color && selected.memory) {
+          document.querySelector('#price').textContent = '82 600 ₽';
+        }
+      }
+    </script>
+  </body>
+</html>

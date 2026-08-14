@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shop"
+  short_description: "Подбор и сравнение товаров для покупки"
+  default_prompt: "Используй $shop, чтобы найти и сравнить лучшие предложения по моему запросу."

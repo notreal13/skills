@@ -1,0 +1,5 @@
+.DS_Store
+.scratch/
+/skills/shop/profile.md
+__pycache__/
+.pytest_cache/
