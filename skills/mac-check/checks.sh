@@ -29,6 +29,28 @@ probe() {
   fi
 }
 
+# du -sh with a bounded observer. macOS has no `timeout`, and file-provider
+# trees (iCloud-synced containers) can wedge du inside an UNINTERRUPTIBLE
+# syscall for minutes — kill does not reach it, so any wait/pipe bound to du
+# blocks too. Here du runs fully detached with every inherited fd closed (it
+# cannot hold the caller's pipes); the caller only polls a done-marker for
+# <fuse> seconds. Prints the size field, "?" on du failure, "?<N>s" if fused.
+du_fused() {  # du_fused <dir> <fuse_seconds>
+  _dir="$1"; _fuse="$2"
+  _t="/tmp/dufused.$$.$RANDOM"
+  ( du -sh "$_dir" 2>/dev/null >"$_t.out"; : >"$_t.done" ) >/dev/null 2>&1 3>&- &
+  _job=$!
+  _n=0
+  while [ "$_n" -lt "$_fuse" ] && [ ! -e "$_t.done" ]; do sleep 1; _n=$((_n+1)); done
+  if [ -e "$_t.done" ]; then
+    [ -s "$_t.out" ] && awk '{print $1}' "$_t.out" || echo "?"
+  else
+    kill "$_job" 2>/dev/null
+    echo "?${_fuse}s"
+  fi
+  rm -f "$_t.out" "$_t.done" 2>/dev/null
+}
+
 # ---------------------------------------------------------------------------- META
 sec "META"
 kv "date"           "$(date '+%Y-%m-%d %H:%M')"
@@ -110,12 +132,12 @@ kv "dock_autohide"        "$(defaults_read com.apple.dock autohide)"
 sec "DISK"
 df -h / | awk 'NR==1 || $1 ~ /\// {printf "  %-22s %6s %6s %6s %5s\n", $1, $2, $3, $4, $5}'
 df / | awk 'NR==2 {printf "%-30s %.1f%%\n", "free_pct_root", $4/$2*100}'
-echo "--- heaviest dirs (approx) ---"
+echo "--- heaviest dirs (approx; ?>Ns = du fused after N seconds) ---"
 for d in ~/Library/Caches ~/Library/"Application Support" ~/Library/Containers \
          ~/Library/"Group Containers" ~/Library/Developer ~/Library/Homebrew \
          ~/Downloads ~/Desktop ~/Documents ~/.Trash \
          "$(brew --cache 2>/dev/null)"; do
-  [ -e "$d" ] && du -sh "$d" 2>/dev/null | sed 's|^|  |'
+  [ -e "$d" ] && printf '  %-8s %s\n' "$(du_fused "$d" 30)" "$d"
 done
 
 # --------------------------------------------------------------------------- HYGIENE
@@ -136,7 +158,7 @@ done
 echo "--- app footprint / last use (approximate metadata) ---"
 for app in /Applications/*.app; do
   [ -d "$app" ] || continue
-  app_size="$(du -sh "$app" 2>/dev/null | awk '{print $1}')"
+  app_size="$(du_fused "$app" 10)"
   app_owner="$(stat -f '%Su:%Sg' "$app" 2>/dev/null || true)"
   last_used="$(mdls -raw -name kMDItemLastUsedDate "$app" 2>/dev/null || true)"
   [ -z "$last_used" ] && last_used="unknown"
@@ -151,7 +173,9 @@ brew list --cask 2>/dev/null | sed 's|^|  |'
 echo "--- largest Caskroom entries ---"
 caskroom="$(brew --caskroom 2>/dev/null || true)"
 if [ -n "$caskroom" ] && [ -d "$caskroom" ]; then
-  du -sh "$caskroom"/* 2>/dev/null | sort -hr | head -15 | sed 's|^|  |'
+  for entry in "$caskroom"/*; do
+    [ -e "$entry" ] && printf '%s\t%s\n' "$(du_fused "$entry" 15)" "$entry"
+  done | sort -hr | head -15 | sed 's|^|  |'
 else
   echo "  unavailable"
 fi
